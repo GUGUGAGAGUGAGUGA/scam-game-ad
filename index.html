@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>史上最難遊戲</title>
+    <style>
+        /* ==========================================================================
+           1. 視覺與背景特效
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Impact", "Arial Black", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+        }
+
+        #audioGateOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #ff0055, #111);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff200;
+            cursor: pointer;
+            text-align: center;
+        }
+        #audioGateOverlay h1 { font-size: 40px; margin-bottom: 20px; text-shadow: 0 0 20px #ff0000; }
+        #audioGateOverlay p { font-size: 20px; color: white; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 8px; animation: pulseScam 0.5s infinite alternate; }
+
+        :root {
+            --stability-float: 8px;
+            --stability-rotate: 1deg;
+            --stability-glitch: 2px;
+            --bg-speed: 30s;
+        }
+
+        body {
+            background: radial-gradient(circle at center, #1a2a6c, #b21f1f);
+            background-size: 200% 200%;
+            animation: gradientBG var(--bg-speed) ease infinite;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            overflow: hidden;
+            user-select: none;
+            perspective: 1000px;
+            transition: background-image 0.2s ease;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #particles {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .title-area {
+            text-align: center;
+            margin-top: 10px;
+            z-index: 10;
+            transition: transform 0.05s ease; 
+        }
+
+        .main-title {
+            font-size: 46px;
+            color: #fff200;
+            text-shadow: 3px 3px 0px #ff0000, 6px 6px 0px #000, 0 0 20px rgba(255, 242, 0, 0.6);
+            letter-spacing: 3px;
+            animation: titleFloat 2s ease-in-out infinite alternate;
+        }
+
+        .sub-title {
+            font-size: 18px;
+            color: #fff;
+            background: linear-gradient(90deg, #ff0055, #ff5500);
+            padding: 6px 20px;
+            border-radius: 50px;
+            display: inline-block;
+            margin-top: 12px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+            border: 2px solid #fff;
+        }
+
+        .warning-text {
+            color: #fff;
+            background: repeating-linear-gradient(45deg, #ff3300, #ff3300 10px, #333 10px, #333 20px);
+            border: 3px solid #fff;
+            padding: 8px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            animation: glitch 1s linear infinite;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #fff200 0%, #ffaa00 100%);
+            border: 4px solid #111;
+            padding: 16px 50px;
+            font-size: 26px;
+            font-weight: bold;
+            color: #111;
+            cursor: pointer;
+            border-radius: 16px;
+            box-shadow: 0px 8px 0px #111, 0px 10px 20px rgba(0,0,0,0.4);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            position: relative;
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #ffffff 0%, #fff200 100%);
+            transform: translateY(-2px);
+            box-shadow: 0px 10px 0px #111, 0px 15px 25px rgba(0,0,0,0.5);
+        }
+        .btn:active {
+            transform: translateY(8px);
+            box-shadow: 0px 0px 0px #111, 0px 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .view-section {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            flex-grow: 1;
+            z-index: 5;
+        }
+        .view-section.active { display: flex; animation: fadeIn 0.4s ease-out; }
+
+        #mainMenuScreen .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .settings-card {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            border: 4px solid #ffcc00;
+            padding: 25px;
+            border-radius: 24px;
+            color: white;
+            width: 380px;
+            max-height: 60vh; 
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+
+        .settings-header {
+            margin-bottom: 15px;
+            color: #fff200;
+            border-bottom: 2px dashed #ffcc00;
+            padding-bottom: 5px;
+            text-align: center;
+        }
+
+        .settings-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .settings-content::-webkit-scrollbar { width: 6px; }
+        .settings-content::-webkit-scrollbar-thumb { background: #ffcc00; border-radius: 10px; }
+
+        .setting-item {
+            margin: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            background: rgba(255,255,255,0.05);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .setting-item label {
+            width: 45%;
+            line-height: 1.3;
+        }
+        .setting-item input[type="range"] {
+            width: 50%;
+            accent-color: #fff200;
+        }
+        .setting-item select {
+            background: #222; color: #fff; border: 1px solid #fff; padding: 3px; border-radius: 4px;
+        }
+
+        .carousel-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 700px;
+            gap: 25px;
+            margin: 20px 0;
+        }
+
+        .arrow-btn {
+            background: radial-gradient(circle, #ff3300, #aa0000);
+            color: white; border: 3px solid #fff;
+            width: 60px; height: 60px;
+            font-size: 28px; font-weight: bold;
+            border-radius: 50%; cursor: pointer;
+            box-shadow: 0px 6px 15px rgba(0,0,0,0.5);
+        }
+
+        .carousel-window {
+            width: 320px; height: 365px;
+            overflow: hidden; position: relative;
+            border: 5px solid #fff; border-radius: 24px;
+            box-shadow: 0px 15px 35px rgba(0,0,0,0.6);
+            background: #0b132b; cursor: grab;
+            transform-style: preserve-3d;
+        }
+
+        .carousel-track { display: flex; height: 100%; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
+        .mode-card { min-width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 25px; color: white; text-align: center; }
+        .mode-card h2 { font-size: 26px; color: #00ffcc; text-shadow: 0 0 10px rgba(0, 255, 204, 0.4); }
+        .mode-preview { width: 100%; height: 60%; background: radial-gradient(circle, #1c2541, #0b132b); border: 3px solid #3a506b; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
+
+        .iq-badge {
+            position: fixed; top: 20px; right: 20px;
+            background: linear-gradient(135deg, #00ffcc, #00a8ff);
+            border: 3px solid #fff; padding: 10px 20px;
+            font-weight: bold; font-size: 18px; border-radius: 12px;
+            cursor: pointer; box-shadow: 0 8px 20px rgba(0,255,204,0.3); z-index: 100;
+        }
+
+        .leaderboard-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(12px); z-index: 200;
+            align-items: center; justify-content: center;
+        }
+        .leaderboard-box { background: #fff; padding: 30px; border-radius: 24px; width: 340px; border: 6px solid #ffcc00; }
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; border-radius: 12px; overflow: hidden; }
+        .leaderboard-table th, .leaderboard-table td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+        .leaderboard-table th { background: #333; color: white; }
+        .leaderboard-table tr.highlight { background: #fff200; font-weight: bold; }
+
+        .scam-vip-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            background: radial-gradient(circle, #ff0055, #ffcc00);
+            color: white; border: 4px solid #fff;
+            padding: 12px; border-radius: 50%;
+            width: 95px; height: 95px;
+            font-size: 13px; font-weight: bold; text-align: center;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0px 8px 25px rgba(255,0,85,0.5);
+            cursor: pointer; z-index: 100;
+            animation: pulseScam 0.4s infinite alternate;
+        }
+
+        @keyframes titleFloat { 
+            0% { transform: translateY(0) rotate(calc(var(--stability-rotate) * -1)); } 
+            100% { transform: translateY(calc(var(--stability-float) * -1)) rotate(var(--stability-rotate)); } 
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseScam { 0% { transform: scale(1) rotate(-8deg); } 100% { transform: scale(1.15) rotate(8deg); } }
+        @keyframes glitch {
+            0% { transform: translate(0) skew(0deg); }
+            20% { transform: translate(calc(var(--stability-glitch) * -1), var(--stability-glitch)) skew(calc(var(--stability-rotate) * -1)); }
+            40% { transform: translate(calc(var(--stability-glitch) * -1), calc(var(--stability-glitch) * -1)) skew(var(--stability-rotate)); }
+            100% { transform: translate(0) skew(0deg); }
+        }
+
+        .preview-gate { display: flex; gap: 15px; }
+        .gate-block { width: 75px; height: 95px; border-radius: 12px; display: flex; flex-direction:column; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: white; border: 2px solid #fff; }
+        .gate-block.blue { background: linear-gradient(135deg, #00bfff, #0052d4); }
+        .gate-block.red { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+        .preview-tower { display: flex; flex-direction: column; gap: 5px; }
+        .tower-floor { width: 110px; height: 38px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+    <div id="audioGateOverlay" onclick="unlockAudioSystem()">
+        <h1>⚠️ 檢測到高智商玩家連線</h1>
+        <p>【 點擊任意處解鎖 BGM 並進入遊戲 】</p>
+    </div>
+
+    <canvas id="particles"></canvas>
+
+    <div class="iq-badge" onclick="openLeaderboard()">
+        🧠 我的 IQ: <span id="iqValueDisplay">-</span>
+    </div>
+
+    <div class="leaderboard-overlay" id="leaderboardModal" onclick="closeLeaderboard()">
+        <div class="leaderboard-box" onclick="event.stopPropagation()">
+            <h3>🏆 全球玩家 IQ 排行榜</h3>
+            <table class="leaderboard-table">
+                <thead>
+                    <tr><th>排行</th><th>玩家</th><th>IQ</th></tr>
+                </thead>
+                <tbody id="leaderboardBody"></tbody>
+            </table>
+            <button class="btn" style="font-size:16px; padding:6px 20px; width:100%" onclick="closeLeaderboard()">關閉</button>
+        </div>
+    </div>
+
+    <div class="scam-vip-btn" onclick="playSE(150, 0.1, 'sawtooth'); alert('解鎖失敗！因為你的付款智商不足！')">
+        首充$99<br>直接變<br>天才！
+    </div>
+
+    <div class="title-area" id="titleArea">
+        <h1 class="main-title" id="gameTitle">史上最難遊戲-你能超過世界上99%的人嗎</h1>
+        <p class="sub-title" id="gameSubTitle">超難遊戲，等你來挑戰！</p>
+        <div class="warning-text">⚠️ 警告：全服僅有 1% 的人能通關！</div>
+    </div>
+
+    <div id="mainMenuScreen" class="view-section active">
+        <div class="menu-buttons">
+            <button class="btn" onclick="playClickSE(); switchView('modeSelectScreen')">開始遊戲</button>
+            <button class="btn" style="background: linear-gradient(135deg, #bbb, #777); color: #fff;" onclick="playClickSE(); switchView('settingsScreen')">遊戲設定</button>
+        </div>
+    </div>
+
+    <div id="settingsScreen" class="view-section">
+        <div class="settings-card">
+            <h2 class="settings-header">⚙️ 遊戲設定 </h2>
+            
+            <div class="settings-content">
+                <div class="setting-item">
+                    <label>🔊 音量控制 (0-100)</label>
+                    <input type="range" id="volumeControl" min="0" max="100" value="80" onchange="updateVolume()">
+                </div>
+                
+                <div class="setting-item">
+                    <label>⚖️ 網頁物件穩定度</label>
+                    <input type="range" id="stabilityControl" min="0" max="100" value="100" oninput="updateStability()">
+                </div>
+                
+                <div class="setting-item">
+                    <label>🌍 網頁地心引力參數</label>
+                    <input type="range" id="gravityControl" min="0" max="100" value="50" oninput="updateGravity()">
+                </div>
+
+                <div class="setting-item">
+                    <label>⚡ 光污染動態閃爍頻率</label>
+                    <input type="range" id="bgSpeedControl" min="1" max="100" value="1" oninput="updateBgEffects()">
+                </div>
+
+                <div class="setting-item">
+                    <label>🌈 萬花筒色彩豐富度</label>
+                    <input type="range" id="bgPaletteControl" min="2" max="20" value="2" step="1" oninput="updateBgEffects()">
+                </div>
+
+                <div class="setting-item">
+                    <label>⚧️ 玩家真實智商階級</label>
+                    <select id="iqLevelSelect" onchange="changeIQBySetting()">
+                        <option value="low">菜鳥 (IQ 50)</option>
+                        <option value="mid" selected>普通愚蠢 (IQ 87)</option>
+                        <option value="high">大天才 (需付費解鎖)</option>
+                    </select>
+                </div>
+
+                <div class="setting-item">
+                    <label>✨ 碎紙特效粒子開關</label>
+                    <input type="checkbox" id="particleToggle" checked onchange="toggleParticles()">
+                </div>
+
+                <div class="setting-item">
+                    <label>🎰 降低玩家生存率 (強制)</label>
+                    <input type="checkbox" checked disabled>
+                </div>
+            </div>
+
+            <button class="btn" style="font-size:18px; padding:10px 20px; width:100%; flex-shrink: 0;" onclick="playClickSE(); switchView('mainMenuScreen')">💾 儲存並返回</button>
+        </div>
+    </div>
+
+    <div id="modeSelectScreen" class="view-section">
+        <div class="carousel-wrapper">
+            <button class="arrow-btn" onclick="playNavSE(); moveCarousel(-1)">◀</button>
+            <div class="carousel-window" id="carouselWindow">
+                <div class="carousel-track" id="carouselTrack"></div>
+            </div>
+            <button class="arrow-btn" onclick="playNavSE(); moveCarousel(1)">▶</button>
+        </div>
+
+        <button class="btn" style="background: linear-gradient(135deg, #ff2a2a, #b30000); color: white;" onclick="playConfirmGameSE(); launchMode()">確認進入！！！</button>
+        <button class="btn" style="font-size:14px; padding:6px 20px; margin-top:15px; background: #333; color: #fff;" onclick="playClickSE(); switchView('mainMenuScreen')">返回首頁</button>
+    </div>
+
+    <div></div>
+
+    <script>
+        const gameModes = [
+            {
+                name: "數字塔模式",
+                desc: "一層層疊上去！算錯一格，智商立刻歸零！",
+                url: "math_tower.html", 
+                previewHtml: `
+                    <div class="preview-tower">
+                        <div class="tower-floor" style="background: #ff416c;">👹 LV.99</div>
+                        <div class="tower-floor" style="background: #ff416c;">😈 LV.25</div>
+                        <div class="tower-floor" style="background: #00bfff; border: 2px solid #fff;">🚹 LV.15</div>
+                    </div>`
+            },
+            {
+                name: "數字門模式",
+                desc: "左右橫移！選錯門直接智商倒退，你能活著到終點嗎？",
+                url: "math_gate.html", 
+                previewHtml: `
+                    <div class="preview-gate">
+                        <div class="gate-block blue">＋100</div>
+                        <div class="gate-block red">× 0</div>
+                    </div>`
+            }
+        ];
+
+        let playerIQ = 87;
+        const baseLeaderboard = [
+            { name: "TCC", iq: 180 },
+            { name: "XCB", iq: 140 },
+            { name: "XCP", iq: 90 },
+            { name: "HAHA", iq: -45 }
+        ];
+
+        let currentModeIndex = 0;
+        let globalGravitySpeed = 0; 
+
+        const colorPalette = [
+            "#1a2a6c", "#b21f1f", "#fff200", "#ff5500", "#00a8ff", 
+            "#ff00ff", "#00ff00", "#ff3300", "#ffcc00", "#00ffcc",
+            "#fdbb2d", "#33ff00", "#9900ff", "#ff6666", "#ff0055"
+        ];
+
+        let audioCtx = null;
+        let bgmInterval = null;
+        let globalGain = null;
+        let masterVolume = 0.8;
+
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            globalGain = audioCtx.createGain();
+            globalGain.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+            globalGain.connect(audioCtx.destination);
+            startBGMLoop();
+        }
+
+        function unlockAudioSystem() {
+            initAudio();
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const gate = document.getElementById('audioGateOverlay');
+            if (gate) gate.style.display = 'none';
+        }
+
+        function updateVolume() {
+            let vol = document.getElementById('volumeControl').value;
+            masterVolume = vol / 100;
+            if (globalGain && audioCtx) {
+                globalGain.gain.setValueAtTime(masterVolume, audioCtx.currentTime);
+            }
+        }
+
+        function startBGMLoop() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+            let step = 0;
+
+            bgmInterval = setInterval(() => {
+                if (!audioCtx || audioCtx.state === 'suspended') return;
+                let osc = audioCtx.createOscillator();
+                let noteGain = audioCtx.createGain();
+                
+                osc.type = 'triangle'; 
+                osc.frequency.setValueAtTime(notes[step % notes.length], audioCtx.currentTime);
+                noteGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                noteGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                
+                osc.connect(noteGain);
+                noteGain.connect(globalGain);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+                step++;
+            }, 350);
+        }
+
+        function playSE(freq, duration, type='sine') {
+            if (!audioCtx) return;
+            let osc = audioCtx.createOscillator();
+            let gainNode = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            
+            osc.connect(gainNode);
+            gainNode.connect(globalGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playClickSE() { playSE(600, 0.15, 'square'); }
+        function playNavSE() { playSE(440, 0.1, 'sine'); }
+        function playConfirmGameSE() {
+            playSE(400, 0.1, 'sawtooth');
+            setTimeout(() => playSE(600, 0.1, 'sawtooth'), 80);
+            setTimeout(() => playSE(900, 0.2, 'sawtooth'), 160);
+        }
+
+        let stabilityLoop = null;
+        function updateStability() {
+            const control = document.getElementById('stabilityControl');
+            if (!control) return; 
+            
+            let value = control.value;
+            let instability = 100 - value; 
+
+            let floatPx = (instability * 0.5) + 4;       
+            let rotateDeg = (instability * 0.15) + 0.5;   
+            let glitchPx = (instability * 0.2) + 1;       
+
+            document.documentElement.style.setProperty('--stability-float', `${floatPx}px`);
+            document.documentElement.style.setProperty('--stability-rotate', `${rotateDeg}deg`);
+            document.documentElement.style.setProperty('--stability-glitch', `${glitchPx}px`);
+
+            if (stabilityLoop) clearInterval(stabilityLoop);
+            
+            const titleArea = document.getElementById('titleArea');
+            if (!titleArea) return;
+
+            if (instability > 70) {
+                stabilityLoop = setInterval(() => {
+                    let shakeX = (Math.random() - 0.5) * (instability * 0.3);
+                    let shakeY = (Math.random() - 0.5) * (instability * 0.3);
+                    titleArea.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
+                }, 50);
+            } else {
+                titleArea.style.transform = `translate(0px, 0px)`;
+            }
+        }
+
+        function updateGravity() {
+            const gravControl = document.getElementById('gravityControl');
+            if (!gravControl) return;
+            let val = parseInt(gravControl.value);
+            globalGravitySpeed = (val - 50) / 15; 
+        }
+
+        function updateBgEffects() {
+            const speedControl = document.getElementById('bgSpeedControl');
+            const paletteControl = document.getElementById('bgPaletteControl');
+            if (!speedControl || !paletteControl) return;
+
+            let speedVal = speedControl.value;
+            let durationSeconds = 30 - (speedVal * 0.295); 
+            document.documentElement.style.setProperty('--bg-speed', `${durationSeconds}s`);
+
+            let colorCount = parseInt(paletteControl.value);
+            colorCount = Math.max(2, colorCount);
+
+            let selectedColors = colorPalette.slice(0, colorCount);
+            let colorString = selectedColors.join(', ');
+            let gradientString = `radial-gradient(circle at center, ${colorString})`;
+
+            document.body.style.backgroundImage = gradientString;
+        }
+
+        function changeIQBySetting() {
+            let select = document.getElementById('iqLevelSelect').value;
+            if (select === 'low') {
+                playerIQ = 50;
+            } else if (select === 'mid') {
+                playerIQ = 87;
+            } else if (select === 'high') {
+                alert('逼逼！解鎖失敗，請掃描螢幕右下角二維碼進行儲值！');
+                document.getElementById('iqLevelSelect').value = 'mid';
+                playerIQ = 87;
+            }
+            document.getElementById('iqValueDisplay').innerText = playerIQ;
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        function renderCarousel() {
+            const track = document.getElementById('carouselTrack');
+            track.innerHTML = '';
+            gameModes.forEach(mode => {
+                const card = document.createElement('div');
+                card.className = 'mode-card';
+                card.innerHTML = `
+                    <h2>${mode.name}</h2>
+                    <div class="mode-preview">${mode.previewHtml}</div>
+                    <p style="font-size:14px; color:#ddd; padding: 0 10px;">${mode.desc}</p>
+                `;
+                track.appendChild(card);
+            });
+        }
+
+        function moveCarousel(direction) {
+            currentModeIndex += direction;
+            if (currentModeIndex < 0) currentModeIndex = gameModes.length - 1;
+            if (currentModeIndex >= gameModes.length) currentModeIndex = 0;
+            updateCarouselPosition();
+        }
+
+        function updateCarouselPosition() {
+            const track = document.getElementById('carouselTrack');
+            track.style.transform = `translateX(-${currentModeIndex * 100}%)`;
+        }
+
+        function setupDragAndDrop() {
+            const windowEl = document.getElementById('carouselWindow');
+            let startX = 0;
+            let isDragging = false;
+
+            windowEl.addEventListener('mousedown', (e) => { startX = e.pageX; isDragging = true; });
+            windowEl.addEventListener('mouseup', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                const endX = e.pageX;
+                const diffX = startX - endX;
+                if (diffX > 60) { playNavSE(); moveCarousel(1); }
+                else if (diffX < -60) { playNavSE(); moveCarousel(-1); }
+            });
+            windowEl.addEventListener('mouseleave', () => { isDragging = false; });
+            
+            windowEl.addEventListener('mousemove', (e) => {
+                const rect = windowEl.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                windowEl.style.transform = `rotateX(${(rect.height/2 - y)/10}deg) rotateY(${(x - rect.width/2)/10}deg) scale(1.02)`;
+            });
+            windowEl.addEventListener('mouseleave', () => { windowEl.style.transform = `rotateX(0deg) rotateY(0deg) scale(1)`; });
+        }
+
+        function openLeaderboard() {
+            playClickSE();
+            const modal = document.getElementById('leaderboardModal');
+            const tbody = document.getElementById('leaderboardBody');
+            tbody.innerHTML = '';
+
+            let list = [...baseLeaderboard, { name: "你 (目前設定)", iq: playerIQ, isPlayer: true }];
+            list.sort((a, b) => b.iq - a.iq);
+
+            list.forEach((user, index) => {
+                const tr = document.createElement('tr');
+                if (user.isPlayer) tr.className = 'highlight';
+                tr.innerHTML = `<td>${index + 1}</td><td>${user.name}</td><td>${user.iq}</td>`;
+                tbody.appendChild(tr);
+            });
+            modal.style.display = 'flex';
+        }
+
+        function closeLeaderboard() { playSE(300, 0.1); document.getElementById('leaderboardModal').style.display = 'none'; }
+
+        let canvas, ctx, particlesArray = [];
+        let animateParticles = true;
+
+        function initParticles() {
+            canvas = document.getElementById('particles');
+            ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            particlesArray = [];
+            for (let i = 0; i < 40; i++) {
+                particlesArray.push({
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 5 + 2, 
+                    speedX: Math.random() * 1.5 - 0.75, 
+                    baseSpeedY: Math.random() * -1 - 0.5,
+                    color: `rgba(${Math.floor(Math.random()*255)}, ${Math.floor(Math.random()*255)}, 255, 0.4)`
+                });
+            }
+            if(animateParticles) drawParticles();
+        }
+
+        function drawParticles() {
+            if (!animateParticles) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particlesArray.forEach(p => {
+                ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                p.x += p.speedX; 
+                p.y += (p.baseSpeedY + globalGravitySpeed); 
+                
+                if (p.y < -10) { 
+                    p.y = canvas.height + 10; p.x = Math.random() * canvas.width; 
+                } else if (p.y > canvas.height + 10) {
+                    p.y = -10; p.x = Math.random() * canvas.width;
+                }
+            });
+            requestAnimationFrame(drawParticles);
+        }
+
+        function toggleParticles() {
+            animateParticles = document.getElementById('particleToggle').checked;
+            if (animateParticles) {
+                drawParticles(); 
+            } else {
+                if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function launchMode() {
+            const activeMode = gameModes[currentModeIndex];
+            
+            // 這是最穩定的跳轉方式，強制瀏覽器直接尋找同目錄下的檔案
+            const targetUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/')) + '/' + activeMode.url;
+            
+            console.log("嘗試跳轉至:", targetUrl);
+            
+            // 移除掉原本讓你困擾的 alert，避免阻塞瀏覽器
+            window.location.assign(activeMode.url);
+        }
+
+        window.addEventListener('resize', () => { if(canvas){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; } });
+        
+        document.addEventListener("DOMContentLoaded", () => {
+            renderCarousel();
+            setupDragAndDrop();
+            initParticles();
+            updateStability(); 
+            updateGravity(); 
+            updateBgEffects(); 
+            document.getElementById('iqValueDisplay').innerText = playerIQ;
+        });
+    </script>
+</body>
+</html>
