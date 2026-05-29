@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>數字塔 Math Tower</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden; 
+            background: radial-gradient(circle, #2a3b5a 0%, #000c1e 100%);
+            color: white;
+            font-family: 'Courier New', Courier, monospace; 
+            user-select: none; 
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .back-to-home-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999; 
+            background: rgba(42, 59, 90, 0.85);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            border-radius: 8px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s ease;
+        }
+        .back-to-home-btn:hover {
+            background-color: #3b4c6e;
+            transform: scale(1.05);
+        }
+
+        .game-btn {
+            padding: 15px 30px; font-size: 24px; font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #2a3b5a; color: white;
+            border: 2px solid white; border-radius: 8px;
+            cursor: pointer; transition: background-color 0.3s, transform 0.1s;
+        }
+        .game-btn:hover { background-color: #3b4c6e; }
+        .game-btn:active { transform: scale(0.95); }
+
+        .game-btn.back-home {
+            background-color: #e67e22;
+            margin-top: 15px;
+        }
+        .game-btn.back-home:hover { background-color: #d35400; }
+
+        #game-canvas {
+            background-color: transparent;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 12, 30, 0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 10;
+        }
+
+        .overlay-title { font-size: 48px; margin-bottom: 20px; color: #ff4757; text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
+        .overlay-score { font-size: 24px; margin-bottom: 40px; color: #ffffff; }
+
+        #prop-panel {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 5; background-color: rgba(42, 59, 90, 0.7);
+            padding: 15px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .prop-item {
+            width: 80px; height: 100px; background-color: #1e272e;
+            border: 2px solid #57606f; border-radius: 8px;
+            display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+            padding: 5px; cursor: grab; position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .prop-item:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .prop-item.dragging { opacity: 0.5; cursor: grabbing; }
+
+        .prop-name { font-size: 11px; color: #a4b0be; text-align: center; font-weight: bold; }
+        .prop-effect { font-size: 16px; color: #ff7f50; font-weight: bold; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <button class="back-to-home-btn" onclick="window.location.href = 'home.html';">🏠 返回主選單</button>
+
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <div id="prop-panel"></div>
+
+        <div id="game-over-screen" class="overlay" style="display: none;">
+            <div class="overlay-title">GAME OVER</div>
+            <div class="overlay-score">最終戰力: <span id="final-power">0</span></div>
+            <button id="restart-btn" class="game-btn">重新挑戰</button>
+            <button onclick="window.location.href = 'home.html';" class="game-btn back-home">返回主選單</button>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            width: 1200, height: 800,
+            towerWidth: 160, towerHeight: 400,
+            roomHeight: 70, baseFloorY: 550,
+            playerRadius: 18
+        };
+
+        const PROPS_DB = [
+            { id: 'p1', name: '王牌雙倍卷', effect: '戰力 × 2', op: 'mul', value: 2, color: '#ff4757' },
+            { id: 'p2', name: '惡魔降臨咒', effect: '戰力 × 0.5', op: 'bad_mul', value: 0.5, color: '#2f3542' },
+            { id: 'p3', name: '救贖光環', effect: '戰力 + 50', op: 'add', value: 50, color: '#2ed573' },
+            { id: 'p4', name: '詛咒重擔', effect: '戰力 - 30', op: 'sub', value: -30, color: '#ffa502' }
+        ];
+
+        let gameState = {
+            playerPower: 10, currentTowerIndex: 0,
+            towers: [], props: [], isGameOver: false,
+            draggingProp: null, nextEstimatedPower: 10
+        };
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const propPanel = document.getElementById('prop-panel');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalPowerDisplay = document.getElementById('final-power');
+        const restartBtn = document.getElementById('restart-btn');
+
+        canvas.width = CONFIG.width;
+        canvas.height = CONFIG.height;
+
+        function formatNumber(num) {
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return num;
+        }
+
+        function generateSolvableTower(towerId, numRooms, startPower) {
+            let currentMockPower = startPower;
+            const rooms = [];
+            
+            for (let i = 0; i < numRooms; i++) {
+                const isEnemy = Math.random() > 0.35 || i === 0; 
+                if (isEnemy) {
+                    const diffRatio = 0.4 + Math.random() * 0.9; 
+                    const enemyPower = Math.max(1, Math.round(currentMockPower * diffRatio));
+                    rooms.push({ type: 'enemy', power: enemyPower });
+                    if (currentMockPower > enemyPower) {
+                        currentMockPower += enemyPower;
+                    } else {
+                        currentMockPower = Math.max(1, currentMockPower - enemyPower);
+                    }
+                } else {
+                    const isMul = Math.random() > 0.6;
+                    if (isMul) {
+                        const val = Math.random() > 0.7 ? 3 : 2;
+                        rooms.push({ type: 'buff', op: 'mul', value: val });
+                        currentMockPower *= val;
+                    } else {
+                        const val = Math.max(5, Math.round(currentMockPower * (0.2 + Math.random() * 0.4)));
+                        currentMockPower += val;
+                        rooms.push({ type: 'buff', op: 'add', value: val });
+                    }
+                }
+            }
+            return { id: towerId, rooms: rooms, x: 0 };
+        }
+
+        function analyzeTower(rooms, startPower) {
+            let maxPower = startPower;
+            rooms.forEach(r => {
+                if (r.type === 'enemy') {
+                    if (maxPower > r.power) maxPower += r.power;
+                } else {
+                    if (r.op === 'mul') maxPower *= r.value;
+                    else maxPower += r.value;
+                }
+            });
+            return { maxPower };
+        }
+
+        function initGame() {
+            gameState = {
+                playerPower: 15, currentTowerIndex: 0,
+                towers: [], props: [], isGameOver: false,
+                draggingProp: null, nextEstimatedPower: 15
+            };
+
+            for (let i = 0; i < 4; i++) {
+                const tower = generateSolvableTower(i, 3 + Math.floor(Math.random() * 3), gameState.nextEstimatedPower);
+                gameState.towers.push(tower);
+                const analysis = analyzeTower(tower.rooms, gameState.nextEstimatedPower);
+                gameState.nextEstimatedPower = analysis.maxPower;
+            }
+
+            gameState.props = [...PROPS_DB];
+            gameOverScreen.style.display = 'none';
+            
+            renderPropsUI();
+            updateTowerPositions(true);
+            gameLoop();
+        }
+
+        function renderPropsUI() {
+            propPanel.innerHTML = '';
+            gameState.props.forEach(prop => {
+                const item = document.createElement('div');
+                item.className = 'prop-item';
+                item.draggable = true;
+                item.style.borderColor = prop.color;
+                item.innerHTML = `<div class="prop-name">${prop.name}</div><div class="prop-effect">${prop.op === 'mul'||prop.op==='bad_mul'? '×'+prop.value : (prop.value>0? '+'+prop.value : prop.value)}</div>`;
+                
+                item.addEventListener('dragstart', () => {
+                    gameState.draggingProp = prop;
+                    item.classList.add('dragging');
+                });
+                item.addEventListener('dragend', () => {
+                    gameState.draggingProp = null;
+                    item.classList.remove('dragging');
+                });
+                propPanel.appendChild(item);
+            });
+        }
+
+        function updateTowerPositions(immediate = false) {
+            const spacing = 260; 
+            const centerX = CONFIG.width / 2;
+            gameState.towers.forEach((tower, i) => {
+                const targetX = centerX + (i - gameState.currentTowerIndex) * spacing - CONFIG.towerWidth / 2;
+                tower.x = immediate ? targetX : tower.x + (targetX - tower.x) * 0.1;
+            });
+        }
+
+        function drawPlayer(x, y, power) {
+            ctx.save();
+            ctx.shadowBlur = 15; ctx.shadowColor = '#00d2d3';
+            ctx.fillStyle = '#00d2d3'; ctx.beginPath(); ctx.arc(x, y, CONFIG.playerRadius, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+            ctx.restore();
+
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 14px Courier New'; ctx.textAlign = 'center';
+            ctx.fillText(formatNumber(power), x, y - CONFIG.playerRadius - 8);
+        }
+
+        function drawTower(tower) {
+            const numRooms = tower.rooms.length;
+            const th = numRooms * CONFIG.roomHeight;
+            const ty = CONFIG.baseFloorY - th;
+
+            ctx.save();
+            ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.fillStyle = '#1e272e'; ctx.fillRect(tower.x, ty, CONFIG.towerWidth, th);
+            ctx.strokeStyle = '#57606f'; ctx.lineWidth = 3; ctx.strokeRect(tower.x, ty, CONFIG.towerWidth, th);
+            ctx.restore();
+
+            for (let f = 0; f < numRooms; f++) {
+                const ry = CONFIG.baseFloorY - (f + 1) * CONFIG.roomHeight;
+                ctx.strokeStyle = 'rgba(87, 96, 111, 0.4)'; ctx.lineWidth = 1;
+                ctx.strokeRect(tower.x, ry, CONFIG.towerWidth, CONFIG.roomHeight);
+
+                const room = tower.rooms[f];
+                const cx = tower.x + CONFIG.towerWidth / 2;
+                const cy = ry + CONFIG.roomHeight / 2;
+
+                if (room.type === 'enemy') {
+                    ctx.fillStyle = '#ff4757'; ctx.font = 'bold 16px Courier New'; ctx.textAlign = 'center';
+                    ctx.fillText(`👹 [${formatNumber(room.power)}]`, cx, cy + 5);
+                } else if (room.type === 'buff') {
+                    ctx.fillStyle = '#2ed573'; ctx.font = 'bold 16px Courier New'; ctx.textAlign = 'center';
+                    ctx.fillText(room.op === 'mul' ? `⚡ ×${room.value}` : `❤️ +${room.value}`, cx, cy + 5);
+                } else if (room.type === 'cleared') {
+                    ctx.fillStyle = 'rgba(87, 96, 111, 0.3)'; ctx.font = '14px Courier New'; ctx.textAlign = 'center';
+                    ctx.fillText('CLEARED', cx, cy + 5);
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (gameState.isGameOver) return;
+
+            ctx.clearRect(0, 0, CONFIG.width, CONFIG.height);
+            updateTowerPositions();
+
+            ctx.strokeStyle = '#718093'; ctx.lineWidth = 4; ctx.beginPath();
+            ctx.moveTo(0, CONFIG.baseFloorY); ctx.lineTo(CONFIG.width, CONFIG.baseFloorY); ctx.stroke();
+
+            gameState.towers.forEach(drawTower);
+
+            const currentTower = gameState.towers[gameState.currentTowerIndex];
+            if (currentTower) {
+                const px = currentTower.x + CONFIG.towerWidth / 2;
+                const py = CONFIG.baseFloorY + 35;
+                drawPlayer(px, py, gameState.playerPower);
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        canvas.addEventListener('dragover', (e) => e.preventDefault());
+
+        canvas.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!gameState.draggingProp || gameState.isGameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) * (CONFIG.width / rect.width);
+            const clickY = (e.clientY - rect.top) * (CONFIG.height / rect.height);
+
+            gameState.towers.forEach((tower) => {
+                if (clickX >= tower.x && clickX <= tower.x + CONFIG.towerWidth) {
+                    const numRooms = tower.rooms.length;
+                    const th = numRooms * CONFIG.roomHeight;
+                    const ty = CONFIG.baseFloorY - th;
+
+                    if (clickY >= ty && clickY <= CONFIG.baseFloorY) {
+                        const floorIndex = Math.floor((CONFIG.baseFloorY - clickY) / CONFIG.roomHeight);
+                        const targetRoom = tower.rooms[floorIndex];
+
+                        if (targetRoom && targetRoom.type === 'enemy') {
+                            const prop = gameState.draggingProp;
+                            if (prop.op === 'mul' || prop.op === 'bad_mul') {
+                                targetRoom.power = Math.round(targetRoom.power * prop.value);
+                            } else {
+                                targetRoom.power = Math.max(1, targetRoom.power + prop.value);
+                            }
+
+                            gameState.props = gameState.props.filter(p => p.id !== prop.id);
+                            renderPropsUI();
+                        }
+                    }
+                }
+            });
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (gameState.isGameOver) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) * (CONFIG.width / rect.width);
+            const clickY = (e.clientY - rect.top) * (CONFIG.height / rect.height);
+
+            const activeTower = gameState.towers[gameState.currentTowerIndex];
+            if (!activeTower) return;
+
+            if (clickX >= activeTower.x && clickX <= activeTower.x + CONFIG.towerWidth) {
+                const numRooms = activeTower.rooms.length;
+                const th = numRooms * CONFIG.roomHeight;
+                const ty = CONFIG.baseFloorY - th;
+
+                if (clickY >= ty && clickY <= CONFIG.baseFloorY) {
+                    const floorIndex = Math.floor((CONFIG.baseFloorY - clickY) / CONFIG.roomHeight);
+                    
+                    let firstUnclearedFloor = -1;
+                    for (let i = 0; i < numRooms; i++) {
+                        if (activeTower.rooms[i].type !== 'cleared') {
+                            firstUnclearedFloor = i;
+                            break;
+                        }
+                    }
+
+                    if (floorIndex === firstUnclearedFloor) {
+                        const room = activeTower.rooms[floorIndex];
+                        if (room.type === 'enemy') {
+                            if (gameState.playerPower > room.power) {
+                                gameState.playerPower += room.power;
+                                room.type = 'cleared';
+                            } else {
+                                gameOver();
+                            }
+                        } else if (room.type === 'buff') {
+                            if (room.op === 'mul') gameState.playerPower *= room.value;
+                            else gameState.playerPower += room.value;
+                            room.type = 'cleared';
+                        }
+                        
+                        checkTowerCleared(activeTower);
+                    }
+                }
+            }
+        });
+
+        function checkTowerCleared(tower) {
+            const isAllCleared = tower.rooms.every(r => r.type === 'cleared');
+            if (isAllCleared) {
+                gameState.currentTowerIndex++;
+                
+                if (gameState.towers.length <= gameState.currentTowerIndex + 5) {
+                    const numRooms = 3 + Math.floor(Math.random() * 3);
+                    const nextId = gameState.towers.length;
+                    const tower = generateSolvableTower(nextId, numRooms, gameState.nextEstimatedPower);
+                    gameState.towers.push(tower);
+                    
+                    const analysis = analyzeTower(tower.rooms, gameState.nextEstimatedPower);
+                    gameState.nextEstimatedPower = analysis.maxPower;
+                }
+            }
+        }
+
+        function gameOver() {
+            gameState.isGameOver = true;
+            finalPowerDisplay.textContent = formatNumber(gameState.playerPower);
+            gameOverScreen.style.display = 'flex';
+        }
+
+        restartBtn.addEventListener('click', initGame);
+        initGame();
+    </script>
+</body>
+</html>
