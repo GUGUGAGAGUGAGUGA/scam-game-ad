@@ -190,11 +190,15 @@
             border-radius: 8px;
         }
         .setting-item label {
-            width: 45%;
-            line-height: 1.3;
+            width: 60%;         /* 把標籤寬度稍微擴大一點 */
+            line-height: 1.2;
+            white-space: nowrap; /* 強制文字不換行 */
+            overflow: hidden;    /* 超出的部分隱藏，不會擠下去 */
+            text-overflow: ellipsis; /* 如果字真的太多，後面會變成 ...，確保版面不跑掉 */
+            font-size: 13px;     /* 字體稍微縮小一點點，避免擠壓 */
         }
         .setting-item input[type="range"] {
-            width: 50%;
+            width: 35%;         /* 滑桿寬度縮小一點點，把空間留給標籤 */
             accent-color: #fff200;
         }
         .setting-item select {
