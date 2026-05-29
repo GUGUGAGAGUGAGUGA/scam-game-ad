@@ -110,7 +110,7 @@ npm start
 
 ## 後續可分工擴充
 
-- **美術**：把 `rectangle` 換成 `this.load.image` + sprite
+- **美術**：把 `rectangle` 換成 `this.load.image` + sprite****
 - **關卡**：依 `this.levelData.level` 調整 `gateConfigs`、敵人 spawn 間隔
 - **音效**：`this.sound.add` 在擊中/過門時播放
 - **廣告梗**：誇張 UI 文案、假五星評價彈窗（可放在 MenuScene 或 GameScene overlay）
@@ -121,3 +121,6 @@ npm start
 - 自動射擊
 - 穿過數字門：獲得增益（每門僅一次）
 - `ESC`：返回主選單（暫時除錯用）
+
+##參考就好
+- 由於某人在亂搞，所以整個就，我也不知道
